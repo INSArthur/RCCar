@@ -13,7 +13,7 @@
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
-    bool isSimulation = false;
+    bool isSimulation = true; // TODO: cleanup logic / rename
 
     // --- VehicleState and lower-level control setup ---
     QSharedPointer<CarState> mCarState(new CarState);
@@ -96,8 +96,8 @@ int main(int argc, char *argv[])
     mVESCMotorController->setEnableIMUOrientationUpdate(useVESCIMU);
 
     // Fuse position
-    CarPositionFuser positionFuser;
-    QObject::connect(mUbloxRover.get(), &UbloxRover::updatedGNSSPositionAndYaw, &positionFuser, &CarPositionFuser::correctPositionAndYawGNSS);
+    //CarPositionFuser positionFuser;
+    //QObject::connect(mUbloxRover.get(), &UbloxRover::updatedGNSSPositionAndYaw, &positionFuser, &CarPositionFuser::correctPositionAndYawGNSS);
 
     // --- Autopilot ---
     QSharedPointer<WaypointFollower> mWaypointFollower(new WaypointFollower(mCarMovementController));
