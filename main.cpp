@@ -101,11 +101,11 @@ int main(int argc, char *argv[])
 
     // --- Autopilot ---
     QSharedPointer<WaypointFollower> mWaypointFollower(new WaypointFollower(mCarMovementController));
-    mWaypointFollower->setPurePursuitRadius(3.0);
+    mWaypointFollower->setPurePursuitRadius(1.0);
 
     // DepthAI Camera
-    DepthAiCamera mDepthAiCamera;
-    QObject::connect(&mDepthAiCamera, &DepthAiCamera::closestObject, mWaypointFollower.get(), &WaypointFollower::updateFollowMePoint);
+//    DepthAiCamera mDepthAiCamera;
+//    QObject::connect(&mDepthAiCamera, &DepthAiCamera::closestObject, mWaypointFollower.get(), &WaypointFollower::updateFollowMePoint);
 
     // TCP/IP communication towards RControlStation
     PacketInterfaceTCPServer mPacketIFServer;
@@ -115,6 +115,82 @@ int main(int argc, char *argv[])
     mPacketIFServer.setWaypointFollower(mWaypointFollower);
     QObject::connect(mVESCMotorController.get(), &VESCMotorController::gotStatusValues, &mPacketIFServer, &PacketInterfaceTCPServer::updateMotorControllerStatus);
     mPacketIFServer.listen();
+
+
+    // ----- SECREDAS -----
+
+    QSerialPort mBleSerialInterface;
+    QObject::connect(&mBleSerialInterface, &QSerialPort::readyRead, [&]() {
+        if (!mBleSerialInterface.canReadLine())
+            return;
+
+        QString receivedData;
+        while (mBleSerialInterface.bytesAvailable())
+            receivedData.append(mBleSerialInterface.readAll());
+
+        bool handledCommand = false;
+        QString commands[5] = {"goto", "setspeed", "setsteering"};
+        //qDebug() << receivedData;
+        if (receivedData.toLower().contains(commands[0])) { // goto
+            QString argumentsStr = receivedData.mid(commands[0].length());
+            QStringList arguments = argumentsStr.split(',');
+
+            if (arguments.size() == 2) {
+                double x = arguments[0].toDouble();
+                double y = arguments[1].toDouble();
+
+                qDebug().nospace() << "Going to (" << x << ", " << y << ")";
+                mWaypointFollower->startFollowMe();
+                mWaypointFollower->updateFollowMePoint(PosPoint(x,y));
+                handledCommand = true;
+            }
+        } else {
+            if (mWaypointFollower->isActive())
+                mWaypointFollower->stop();
+            if (receivedData.toLower().contains(commands[1])) { // setspeed [km/h]
+                QString argumentsStr = receivedData.mid(commands[1].length());
+                if (argumentsStr.length()) {
+                    double speed = argumentsStr.toDouble();
+
+                    qDebug().nospace() << "Setting speed to " << speed << " km/h";
+                    mCarMovementController->setDesiredSpeed(speed / 3.6);
+                    handledCommand = true;
+                }
+            } else if (receivedData.toLower().contains(commands[2])) { // setsteering [-1.0:1.0]
+                QString argumentsStr = receivedData.mid(commands[2].length());
+                if (argumentsStr.length()) {
+                    double steering = argumentsStr.toDouble();
+
+                    qDebug().nospace() << "Setting steering to " << steering;
+                    mCarMovementController->setDesiredSteering(steering);
+                    handledCommand = true;
+                }
+            }
+        }
+
+        // return "OK" when command was detected, "NOK" otherwise
+        char reply_str[8] = "NOK\r";
+        if (handledCommand)
+            strcpy(reply_str, "OK\r");
+
+        mBleSerialInterface.write(reply_str);
+        mBleSerialInterface.flush();
+    });
+
+    foreach(const QSerialPortInfo &portInfo, ports) {
+        if (portInfo.manufacturer().toLower().contains("segger") && portInfo.description().toLower().replace("-", "").contains("jlink")) {
+            mBleSerialInterface.setPort(portInfo);
+            qDebug() << "Trying to connect..." << mBleSerialInterface.open(QIODevice::ReadWrite);
+
+            if (mBleSerialInterface.isOpen()) {
+                qDebug() << "Connected to" << portInfo.systemLocation();
+
+                mBleSerialInterface.setBaudRate(115200);
+            }
+        }
+    }
+
+    // ----- SECREDAS -----
 
     qDebug() << "\n" // by hjw
              << "                    .------.\n"
