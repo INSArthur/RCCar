@@ -129,10 +129,12 @@ int main(int argc, char *argv[])
             receivedData.append(mBleSerialInterface.readAll());
         receivedData = receivedData.simplified().replace(" ", ""); // remove whitespace
 
-        bool handledCommand = false;
         // ### The different commands that get recognized ###
         QString commands[8] = {"goto", "setspeed", "setsteering", "FetchCarAE42BB56CAFF82F34Entrance1"};
         //qDebug() << receivedData;
+        mWaypointFollower->setFollowPointSpeed(1.5); // [m/s]
+
+        bool handledCommand = false;
         if (receivedData.toLower().contains(commands[0])) { // goto
             QString argumentsStr = receivedData.mid(commands[0].length());
             QStringList arguments = argumentsStr.split(',');
