@@ -127,9 +127,11 @@ int main(int argc, char *argv[])
         QString receivedData;
         while (mBleSerialInterface.bytesAvailable())
             receivedData.append(mBleSerialInterface.readAll());
+        receivedData = receivedData.simplified().replace(" ", ""); // remove whitespace
 
         bool handledCommand = false;
-        QString commands[5] = {"goto", "setspeed", "setsteering"};
+        // ### The different commands that get recognized ###
+        QString commands[8] = {"goto", "setspeed", "setsteering", "FetchCarAE42BB56CAFF82F34Entrance1"};
         //qDebug() << receivedData;
         if (receivedData.toLower().contains(commands[0])) { // goto
             QString argumentsStr = receivedData.mid(commands[0].length());
@@ -144,7 +146,14 @@ int main(int argc, char *argv[])
                 mWaypointFollower->updateFollowMePoint(PosPoint(x,y));
                 handledCommand = true;
             }
-        } else {
+        } else if (receivedData.compare(commands[3]) == 0) { // FetchCarAE42BB56CAFF82F34Entrance1
+            double x = 10.0;
+            double y = 10.0;
+            qDebug().nospace() << "Going to (" << x << ", " << y << "), executing FetchCar";
+            mWaypointFollower->startFollowMe();
+            mWaypointFollower->updateFollowMePoint(PosPoint(x,y));
+            handledCommand = true;
+        } else { // Commands that do not need mWaypointFollower (should only be setspeed, setsteering variants)
             if (mWaypointFollower->isActive())
                 mWaypointFollower->stop();
             if (receivedData.toLower().contains(commands[1])) { // setspeed [km/h]
