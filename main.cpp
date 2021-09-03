@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
     QSharedPointer<CarMovementController> mCarMovementController(new CarMovementController(mCarState));
     // NOTE: HEADSTART rc car (values read from sdvp pcb)
     mCarMovementController->setSpeedToRPMFactor(2997.3);
-    mCarState->setAxisDistance(0.36);
+    mCarState->setAxisDistance(0.8);
     mCarState->setMaxSteeringAngle(atan(mCarState->getAxisDistance() / 0.67));
 
     // GNSS, with optional IMU on u-blox F9R
